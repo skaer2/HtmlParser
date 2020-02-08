@@ -1,0 +1,6 @@
+.stack-work/
+plan/
+*.swp
+stack.yaml.lock
+
+outputHtml.txt
