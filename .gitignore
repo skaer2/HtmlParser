@@ -4,3 +4,4 @@ plan/
 stack.yaml.lock
 
 outputHtml.txt
+newOutput.txt

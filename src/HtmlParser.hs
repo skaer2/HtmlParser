@@ -1,6 +1,8 @@
 module HtmlParser where
 
 import           Control.Applicative          ((<|>))
+import           Data.List
+import           Text.ParserCombinators.ReadP
 
 -- HtmlDocument = Tag
 -- Tag = ClosableTag | NotClosableTag
@@ -12,8 +14,6 @@ import           Control.Applicative          ((<|>))
 -- Text = neskolko char
 --
 --
-import           Text.ParserCombinators.ReadP
-
 data Tag
     = TagClosable ClosableTag
     | TagNotClosable NotClosableTag
@@ -32,8 +32,31 @@ data Content
     | TagContent Tag
     deriving (Eq, Show)
 
+printTree :: (Show a) => [(a, String)] -> String
+printTree tree = helper (-1) $ show tree
+  where
+    helper _ [] = []
+    helper deep (x:xs) 
+        | x `elem` charsToDeeper = '\n':(tabs 1) ++ (x : ' ' : (helperDeeper xs) )
+        | x `elem` charsToHigher = '\n':(tabs (0)) ++ (x : (helperHigher xs) )
+        | x `elem` charsToStay = '\n':(tabs 0)++ (x : ' ' : (helperStay xs))
+        | otherwise = x : helperStay xs
+      where
+        tabs n = replicate (deep + n) '\t'
+        helperDeeper = helper (deep + 1)
+        helperStay = helper deep
+        helperHigher = helper (deep - 1)
+        charsToDeeper = "(["
+        charsToStay = ","
+        charsToHigher = ")]"
+
 showResult :: [(a, String)] -> [(a, String)]
-showResult = filter (\(x, leftovers) -> if leftovers == "" then True else False)
+showResult =
+    filter
+        (\(x, leftovers) ->
+             if leftovers == ""
+                 then True
+                 else False)
 
 tagSymbol :: Char -> Bool
 tagSymbol c = (c == tagSymbolOpen) || (c == tagSymbolClosed)
@@ -57,10 +80,10 @@ textParser = many1 $ satisfy text
 
 tagNameParser :: ReadP String
 tagNameParser = many1 $ satisfy $ not . ((||) <$> tagSymbols <*> isWhitespace)
-    where
-        tagSymbols = (||) <$> tagSymbol <*> isSlashSymbol
-        isSlashSymbol c = c == slashSymbol 
-        slashSymbol = '/'
+  where
+    tagSymbols = (||) <$> tagSymbol <*> isSlashSymbol
+    isSlashSymbol c = c == slashSymbol
+    slashSymbol = '/'
 
 tagParser :: ReadP Tag
 tagParser = closableTagParser <|> notClosableTagParser
