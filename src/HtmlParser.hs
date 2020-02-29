@@ -15,16 +15,19 @@ import           Text.ParserCombinators.ReadP
 --
 --
 data Tag
-    = TagClosable ClosableTag
-    | TagNotClosable NotClosableTag
+    = TagClosable ClosableTag 
+    | TagNotClosable NotClosableTag 
     deriving (Eq, Show)
 
 data NotClosableTag =
-    NotClosableTag String
+    NotClosableTag String [Attribute]
     deriving (Eq, Show)
 
 data ClosableTag =
-    ClosableTag String [Content]
+    ClosableTag String [Attribute] [Content]
+    deriving (Eq, Show)
+
+data Attribute = Attribute String String
     deriving (Eq, Show)
 
 data Content
@@ -58,56 +61,76 @@ showResult =
                  then True
                  else False)
 
-tagSymbol :: Char -> Bool
-tagSymbol c = (c == tagSymbolOpen) || (c == tagSymbolClosed)
+text :: Char -> Bool
+text = not . isTagSymbol
 
-tagSymbolOpen :: Char
-tagSymbolOpen = '<'
+textParser :: ReadP String
+textParser = many1 $ satisfy text
 
-tagSymbolClosed :: Char
-tagSymbolClosed = '>'
+tagNameParser :: ReadP String
+tagNameParser = many1 $ satisfy $ not . ((||) <$> isTagSymbol <*> isWhitespace)
+
+isTagSymbol :: Char -> Bool 
+isTagSymbol c = c `elem` tagSymbols 
+
+tagSymbols :: String
+tagSymbols = "<>/"
 
 isWhitespace :: Char -> Bool
 isWhitespace c = elem c wschars
   where
     wschars = " \t\r\n"
 
-text :: Char -> Bool
-text = not . tagSymbol
-
-textParser :: ReadP String
-textParser = many1 $ satisfy text
-
-tagNameParser :: ReadP String
-tagNameParser = many1 $ satisfy $ not . ((||) <$> tagSymbols <*> isWhitespace)
-  where
-    tagSymbols = (||) <$> tagSymbol <*> isSlashSymbol
-    isSlashSymbol c = c == slashSymbol
-    slashSymbol = '/'
-
 tagParser :: ReadP Tag
 tagParser = closableTagParser <|> notClosableTagParser
 
 notClosableTagParser :: ReadP Tag
 notClosableTagParser = do
-    tagName <- openingTagParser
-    return (TagNotClosable $ NotClosableTag tagName)
+    (tagName, attributes) <- openingTagParser
+    attributes <- attrsParser
+    return (TagNotClosable $ NotClosableTag tagName attributes)
 
 closableTagParser :: ReadP Tag
 closableTagParser = do
-    tagName <- openingTagParser
+    (tagName, attributes) <- openingTagParser
     content <- contsParser
     closingTagParser tagName
-    return (TagClosable $ ClosableTag tagName content)
+    return (TagClosable $ ClosableTag tagName attributes content)
 
-openingTagParser :: ReadP String
+openingTagParser :: ReadP (String, [Attribute])
 openingTagParser = do
     char '<'
     skipSpaces
     tagName <- tagNameParser
     skipSpaces
+    attributes <- attrsParser
+    skipSpaces
     char '>'
-    return tagName
+    return (tagName, attributes)
+
+attrNameParser :: ReadP String
+attrNameParser = many1 $ satisfy $ not . ((||) <$> isAttrSymbols <*> isWhitespace)
+
+isAttrSymbols :: Char -> Bool
+isAttrSymbols c = c `elem` attrSymbols
+
+attrSymbols :: String
+attrSymbols = "=\""
+
+attrsParser :: ReadP [Attribute]
+attrsParser = many attrParser 
+
+attrParser :: ReadP Attribute
+attrParser = do
+    attrName <- attrNameParser  
+    skipSpaces
+    char '='
+    skipSpaces
+    char 'x'
+    attrValue <- attrNameParser  
+    char 'x'
+    return $ Attribute attrName attrValue
+
 
 contsParser :: ReadP [Content]
 contsParser = do

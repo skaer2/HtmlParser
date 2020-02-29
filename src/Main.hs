@@ -5,4 +5,7 @@ import Text.ParserCombinators.ReadP
 
 main :: IO ()
 main = do
-  putStrLn $ printTree $ showResult $ readP_to_S (tagParser) "<asdfa>ger<asdfa>gavno<div></asdfa>her</asdfa>"
+  print $ readP_to_S (tagParser) "<asdfa attributik=xgavnox >ger<asdfa>gavno<div></asdfa>her</asdfa>"
+  putStrLn ""
+  putStrLn $ printTree $ showResult $ readP_to_S (tagParser) "<asdfa attributik=xgavnox >ger<asdfa>gavno<div></asdfa>her</asdfa>"
+  putStrLn $ "\"gavno\""
